@@ -17,6 +17,7 @@ dependencies = [
     "filelock~=3.16",
     "numpy~=1.26",
     "pandas~=2.2",
+    "pyarrow~=19.0",
     "requests~=2.32",
 ]
 classifiers = [
