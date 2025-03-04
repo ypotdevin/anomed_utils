@@ -32,4 +32,4 @@ autodoc2_docstring_parser_regexes = [
 autodoc2_module_all_regexes = [
     r"anomed_utils\..*",
 ]
-autodoc2_hidden_objects = ["undoc", "private", "inherited"]
+autodoc2_hidden_objects = ["private", "inherited"]
