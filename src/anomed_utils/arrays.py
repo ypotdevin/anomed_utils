@@ -2,6 +2,12 @@ from typing import Iterable, Sequence
 
 import numpy as np
 
+__all__ = [
+    "binary_confusion_matrix",
+    "random_partitions",
+    "shuffles",
+]
+
 
 def random_partitions(
     arrays: Iterable[np.ndarray],

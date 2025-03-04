@@ -9,6 +9,15 @@ import numpy as np
 import requests
 from filelock import FileLock, Timeout
 
+__all__ = [
+    "FitResource",
+    "StaticJSONResource",
+    "bytes_to_named_ndarrays",
+    "bytes_to_named_ndarrays_or_raise",
+    "get_named_arrays_or_raise",
+    "named_ndarrays_to_bytes",
+]
+
 logger = logging.getLogger(__name__)
 
 
