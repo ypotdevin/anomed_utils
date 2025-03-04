@@ -1,0 +1,38 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "anomed-utils"
+description = """
+Basic web and array utilities useful for contributing to the AnoMed platform."""
+readme = "README.md"
+authors = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
+maintainers = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+version = "0.3.4"
+dependencies = [
+    "falcon~=4.0",
+    "filelock~=3.16",
+    "numpy~=1.26",
+    "requests~=2.32",
+]
+classifiers = [
+    "Development Status :: 1 - Planning",
+    "Intended Audience :: Developers",
+]
+
+[project.optional-dependencies]
+dev = ["anomed-utils", "ruff~=0.7"]
+test = [
+    "anomed-utils",
+    "coverage~=7.6",
+    "pytest~=8.3",
+    "pytest-cov~=6.0",
+    "pytest-mock~=3.14",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["anomed_utils"]
