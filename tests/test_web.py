@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import falcon
 import falcon.app
 import numpy as np
+import pandas as pd
 import pytest
 import requests
 from falcon import testing
@@ -135,3 +136,33 @@ def _mock_get_connection_error(_mocker) -> MagicMock:
     mock_response = _mocker.MagicMock()
     mock_response.side_effect = requests.ConnectionError()
     return _mocker.patch("requests.get", return_value=mock_response)
+
+
+def test_dataframe_bytes_conversion():
+    orig_dfs = []
+    orig_dfs.append(
+        pd.DataFrame(
+            {
+                "a": list("abc"),
+                "b": list(range(1, 4)),
+                "c": np.arange(3, 6).astype("u1"),
+                "d": np.arange(4.0, 7.0, dtype="float64"),
+                "e": [True, False, True],
+                "f": pd.Categorical(list("abc")),
+                "g": pd.date_range("20130101", periods=3),
+                "h": pd.date_range("20130101", periods=3, tz="US/Eastern"),
+                "i": pd.date_range("20130101", periods=3, freq="ns"),
+            }
+        )
+    )
+    orig_dfs.append(pd.DataFrame(data=[1, 2], index=[True, False]))
+    orig_dfs.append(pd.DataFrame(data=[1, 2, 3], index=["a", "b", "c"]))
+    orig_dfs.append(
+        pd.DataFrame(data=[1, 2, 3], index=pd.date_range("20130101", periods=3))
+    )
+    for orig_df in orig_dfs:
+        bytes = web.dataframe_to_bytes(orig_df)
+        restored_df = web.bytes_to_dataframe(bytes)
+        assert orig_df.equals(restored_df) and np.array_equal(
+            orig_df.columns, restored_df.columns
+        )

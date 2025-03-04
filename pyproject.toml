@@ -11,11 +11,12 @@ authors = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
 maintainers = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
     "falcon~=4.0",
     "filelock~=3.16",
     "numpy~=1.26",
+    "pandas~=2.2",
     "requests~=2.32",
 ]
 classifiers = [

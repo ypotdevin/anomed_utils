@@ -6,16 +6,19 @@ from typing import Any, Callable, Iterable
 
 import falcon
 import numpy as np
+import pandas as pd
 import requests
 from filelock import FileLock, Timeout
 
 __all__ = [
-    "FitResource",
-    "StaticJSONResource",
-    "bytes_to_named_ndarrays",
+    "bytes_to_dataframe",
     "bytes_to_named_ndarrays_or_raise",
+    "bytes_to_named_ndarrays",
+    "dataframe_to_bytes",
+    "FitResource",
     "get_named_arrays_or_raise",
     "named_ndarrays_to_bytes",
+    "StaticJSONResource",
 ]
 
 logger = logging.getLogger(__name__)
@@ -149,7 +152,7 @@ def bytes_to_named_ndarrays(data: bytes) -> dict[str, np.ndarray]:
     Parameters
     ----------
     data : bytes
-        The bytes representation of a (compressed)
+        The bytes representation of a (compressed) NumPy array.
 
     Returns
     -------
@@ -272,3 +275,51 @@ def get_named_arrays_or_raise(
         error_message="Array payload validation failed.",
     )
     return arrays
+
+
+def dataframe_to_bytes(df: pd.DataFrame) -> bytes:
+    """Convert a pandas DataFrame to a bytes sequence.
+
+    Use this for example as payload data in a POST request.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The pandas DataFrame to convert to bytes. Must be compatible with
+        [`pandas.DataFrame.to_parquet`](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.to_parquet.html).
+
+    Returns
+    -------
+    bytes
+        A compressed bytes sequence.
+
+    Notes
+    -----
+    This is the inverse to `bytes_to_dataframe`.
+    """
+    dataframe_bytes = BytesIO()
+    df.to_parquet(path=dataframe_bytes, engine="pyarrow")
+    return dataframe_bytes.getvalue()
+
+
+def bytes_to_dataframe(data: bytes) -> pd.DataFrame:
+    """Convert a bytes sequence back to a pandas DataFrame.
+
+    Use this for example to retrieve a DataFrame from an HTTP response.
+
+    Parameters
+    ----------
+    data : bytes
+        The bytes representation of a pandas DataFrame.
+
+    Returns
+    -------
+    pd.DataFrame
+        The converted DataFrame.
+
+    Notes
+    -----
+    This is the inverse function to `dataframe_to_bytes`.
+    """
+    df = pd.read_parquet(BytesIO(data))
+    return df
