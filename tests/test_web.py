@@ -166,3 +166,9 @@ def test_dataframe_bytes_conversion():
         assert orig_df.equals(restored_df) and np.array_equal(
             orig_df.columns, restored_df.columns
         )
+
+
+def test_failing_bytes_to_dataframe():
+    byte_string = b"test test"
+    with pytest.raises(expected_exception=ValueError):
+        web.bytes_to_dataframe(byte_string)

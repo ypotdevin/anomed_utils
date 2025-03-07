@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 import requests
 from filelock import FileLock, Timeout
+from pyarrow import ArrowException
 
 __all__ = [
     "bytes_to_dataframe",
@@ -317,9 +318,19 @@ def bytes_to_dataframe(data: bytes) -> pd.DataFrame:
     pd.DataFrame
         The converted DataFrame.
 
+    Raises
+    ------
+    ValueError
+        If reading the DataFrame from bytes failed
+
     Notes
     -----
     This is the inverse function to `dataframe_to_bytes`.
     """
-    df = pd.read_parquet(BytesIO(data))
+    try:
+        df = pd.read_parquet(BytesIO(data))
+    except ArrowException:
+        msg = "Failed to read DataFrame from bytes."
+        logger.exception(msg)
+        raise ValueError(msg)
     return df
