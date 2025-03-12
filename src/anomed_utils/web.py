@@ -8,6 +8,7 @@ import falcon
 import numpy as np
 import pandas as pd
 import requests
+import urllib3
 from filelock import FileLock, Timeout
 from pyarrow import ArrowException
 
@@ -16,6 +17,7 @@ __all__ = [
     "bytes_to_named_ndarrays_or_raise",
     "bytes_to_named_ndarrays",
     "dataframe_to_bytes",
+    "encode_multiple_parts",
     "FitResource",
     "get_dataframe_or_raise",
     "get_named_arrays_or_raise",
@@ -395,3 +397,31 @@ def get_dataframe_or_raise(
         message = "Failed to parse the DataFrame from remote location."
         _logger.exception(message)
         raise falcon.HTTPInternalServerError(description=message)
+
+
+def encode_multiple_parts(
+    parts_with_keys: dict[str, str | bytes],
+) -> tuple[bytes, dict[str, str]]:
+    """A convenient wrapper for `urllib3.encode_multipart_formdata` for simple
+    cases.
+
+    Use this wrapper if you prepare to post multiple serialized, or at least
+    easily serializable, parts. One example might be a serialized `pd.DataFrame`
+    and a metadata string.
+
+    Parameters
+    ----------
+    parts_with_keys : dict[str, str  |  bytes]
+        The individual parts, identified by a key string.
+
+    Returns
+    -------
+    (body, content_type_header) : tuple[bytes, dict[str, str]]
+        All parts encoded as one body (bytes) and a suitable content type
+        header.
+    """
+    body, content_type_header = urllib3.encode_multipart_formdata(parts_with_keys)
+    headers = {
+        "Content-Type": content_type_header,
+    }
+    return (body, headers)
