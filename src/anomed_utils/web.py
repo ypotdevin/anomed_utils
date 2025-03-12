@@ -17,12 +17,13 @@ __all__ = [
     "bytes_to_named_ndarrays",
     "dataframe_to_bytes",
     "FitResource",
+    "get_dataframe_or_raise",
     "get_named_arrays_or_raise",
     "named_ndarrays_to_bytes",
     "StaticJSONResource",
 ]
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class StaticJSONResource:
@@ -96,26 +97,26 @@ class FitResource:
         falcon.HTTPError
             If obtaining training data failed.
         """
-        logger.debug("Obtaining fitting data.")
+        _logger.debug("Obtaining fitting data.")
         fit_data = self._get_fit_data()
-        logger.debug("Obtained fitting data:")
+        _logger.debug("Obtained fitting data:")
         for label, array in fit_data.items():
-            logger.debug(
+            _logger.debug(
                 f"    Array {label} (of the fitting data) has shape {array.shape} and "
                 f"dtype {array.dtype}"
             )
         try:
             with self._model_lock:
-                logger.debug("Initiating fitting of model with obtained fitting data.")
+                _logger.debug("Initiating fitting of model with obtained fitting data.")
                 self._model.fit(**fit_data)
-                logger.debug("Persisting fitted model.")
+                _logger.debug("Persisting fitted model.")
                 self._model.save(self._model_filepath)
         except Timeout:
             raise falcon.HTTPServiceUnavailable(
                 description="Fitting is already in progress. Aborting current attempt.",
             )
         success_message = "Fitting has been completed successfully."
-        logger.debug(success_message)
+        _logger.debug(success_message)
         resp.status = falcon.HTTP_CREATED
         resp.text = json.dumps(dict(message=success_message))
 
@@ -331,6 +332,57 @@ def bytes_to_dataframe(data: bytes) -> pd.DataFrame:
         df = pd.read_parquet(BytesIO(data))
     except ArrowException:
         msg = "Failed to read DataFrame from bytes."
-        logger.exception(msg)
+        _logger.exception(msg)
         raise ValueError(msg)
     return df
+
+
+def get_dataframe_or_raise(
+    data_url: str,
+    params: dict[str, Any] | None = None,
+    timeout: float | None = None,
+) -> pd.DataFrame:
+    """Obtain a byte-serialized Pandas `DataFrame` (e.g. via
+    `dataframe_to_bytes`) from a remote location via GET request and validate
+    the payload. Raise a `falcon.HTTPError` if it fails.
+
+    Parameters
+    ----------
+    data_url : str
+        The remote location to access via GET request. It should respond a
+        byte-serialized Pandas DataFrame.
+    params : dict[str, Any] | None, optional
+        Optional request parameters to provide. By default `None` (no
+        parameters).
+    timeout : float | None, optional
+        The timeout to use for the connection to `data_url`. By default `None`
+        (wait until connection is closed).
+
+    Returns
+    -------
+    pd.DataFrame
+        The `DataFrame`.
+
+    Raises
+    ------
+    falcon.HTTPServiceUnavailable
+        If the connection to, or the response from the remote location was
+        faulty.
+    falcon.HTTPInternalServerError
+        If parsing the `DataFrame` from the requested bytes payload failed.
+    """
+    try:
+        data_resp = requests.get(url=data_url, params=params, timeout=timeout)
+        if data_resp.status_code != 200:
+            raise ValueError()
+    except (requests.RequestException, ValueError):
+        raise falcon.HTTPServiceUnavailable(
+            description="Unable to obtain data from remote location (timeout or error)."
+        )
+    try:
+        df = bytes_to_dataframe(data_resp.content)
+        return df
+    except ValueError:
+        message = "Failed to parse the DataFrame from remote location."
+        _logger.debug(message)
+        raise falcon.HTTPInternalServerError(description=message)
