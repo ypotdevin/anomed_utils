@@ -11,7 +11,7 @@ authors = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
 maintainers = [{ name = "Yannik Potdevin", email = "ypo.uzl@proton.me" }]
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-version = "0.3.7"
+version = "0.3.8"
 dependencies = [
     "falcon~=4.0",
     "filelock~=3.16",
@@ -19,6 +19,7 @@ dependencies = [
     "pandas~=2.2",
     "pyarrow~=19.0",
     "requests~=2.32",
+    "urllib3~=2.3",
 ]
 classifiers = [
     "Development Status :: 1 - Planning",

@@ -10,7 +10,7 @@ import pytest
 import requests
 from falcon import testing
 
-from anomed_utils import web
+import anomed_utils as utils
 
 
 @pytest.fixture()
@@ -54,10 +54,10 @@ class Dummy:
 @pytest.fixture()
 def client(tmp_path, int_array):
     app = falcon.App()
-    app.add_route("/", web.StaticJSONResource(dict(message="hello world")))
+    app.add_route("/", utils.StaticJSONResource(dict(message="hello world")))
     app.add_route(
         "/fit",
-        web.FitResource(
+        utils.FitResource(
             data_getter=lambda: dict(X=int_array, y=int_array),
             model=Dummy(),
             model_filepath=tmp_path / "model",
@@ -82,7 +82,9 @@ def test_array_to_bytes_conversion(empty_array, int_array, float_array, object_a
     expected_result = dict(
         empty=empty_array, ints=int_array, floats=float_array, objs=object_array
     )
-    result = web.bytes_to_named_ndarrays(web.named_ndarrays_to_bytes(expected_result))
+    result = utils.bytes_to_named_ndarrays(
+        utils.named_ndarrays_to_bytes(expected_result)
+    )
     _assert_dict_array_eq(expected_result, result)
 
 
@@ -97,18 +99,18 @@ def _assert_dict_array_eq(
 
 def test_bytes_to_named_ndarrays_or_raise(int_array):
     arrays = dict(a=int_array, b=int_array)
-    payload = web.named_ndarrays_to_bytes(arrays)
+    payload = utils.named_ndarrays_to_bytes(arrays)
     _assert_dict_array_eq(
-        arrays, web.bytes_to_named_ndarrays_or_raise(payload, ["a", "b"], 500)
+        arrays, utils.bytes_to_named_ndarrays_or_raise(payload, ["a", "b"], 500)
     )
 
 
 def test_failing_bytes_to_named_ndarrays_or_raise(int_array):
     arrays = dict(a=int_array, b=int_array)
-    payload = web.named_ndarrays_to_bytes(arrays)
+    payload = utils.named_ndarrays_to_bytes(arrays)
     with pytest.raises(falcon.HTTPError):
         _assert_dict_array_eq(
-            arrays, web.bytes_to_named_ndarrays_or_raise(payload, ["a", "c"], 500)
+            arrays, utils.bytes_to_named_ndarrays_or_raise(payload, ["a", "c"], 500)
         )
 
 
@@ -116,7 +118,7 @@ def test_get_named_arrays_or_raise(int_array, mocker):
     arrays = dict(a=int_array, b=int_array)
     mock = _mock_get_numpy_arrays(mocker, named_arrays=arrays)
     _assert_dict_array_eq(
-        web.get_named_arrays_or_raise("example.com", ["a", "b"]), arrays
+        utils.get_named_arrays_or_raise("example.com", ["a", "b"]), arrays
     )
     mock.assert_called_once()
 
@@ -124,7 +126,7 @@ def test_get_named_arrays_or_raise(int_array, mocker):
 def test_failing_get_named_arrays_or_raise(int_array, mocker):
     mock = _mock_get_connection_error(mocker)
     with pytest.raises(falcon.HTTPServiceUnavailable):
-        web.get_named_arrays_or_raise("example.com", ["a", "b"])
+        utils.get_named_arrays_or_raise("example.com", ["a", "b"])
     mock.assert_called_once()
 
 
@@ -133,7 +135,7 @@ def _mock_get_numpy_arrays(
 ) -> MagicMock:
     mock_response = _mocker.MagicMock()
     mock_response.status_code = status_code
-    mock_response.content = web.named_ndarrays_to_bytes(named_arrays)
+    mock_response.content = utils.named_ndarrays_to_bytes(named_arrays)
     return _mocker.patch("requests.get", return_value=mock_response)
 
 
@@ -166,8 +168,8 @@ def test_dataframe_bytes_conversion():
         pd.DataFrame(data=[1, 2, 3], index=pd.date_range("20130101", periods=3))
     )
     for orig_df in orig_dfs:
-        bytes = web.dataframe_to_bytes(orig_df)
-        restored_df = web.bytes_to_dataframe(bytes)
+        bytes = utils.dataframe_to_bytes(orig_df)
+        restored_df = utils.bytes_to_dataframe(bytes)
         assert orig_df.equals(restored_df) and np.array_equal(
             orig_df.columns, restored_df.columns
         )
@@ -176,19 +178,19 @@ def test_dataframe_bytes_conversion():
 def test_failing_bytes_to_dataframe():
     byte_string = b"test test"
     with pytest.raises(expected_exception=ValueError):
-        web.bytes_to_dataframe(byte_string)
+        utils.bytes_to_dataframe(byte_string)
 
 
 def test_get_dataframe_or_raise(example_float_df, mocker):
     mock = _mock_get_dataframe(mocker, example_float_df)
-    assert example_float_df.equals(web.get_dataframe_or_raise("example.com"))
+    assert example_float_df.equals(utils.get_dataframe_or_raise("example.com"))
     mock.assert_called_once()
 
 
-def test_failing_get_dataframe_or_raise(example_float_df, mocker):
+def test_failing_get_dataframe_or_raise(mocker):
     mock = _mock_get_connection_error(mocker)
     with pytest.raises(falcon.HTTPServiceUnavailable):
-        web.get_dataframe_or_raise("example.com")
+        utils.get_dataframe_or_raise("example.com")
     mock.assert_called_once()
 
     mock_response = mocker.MagicMock()
@@ -196,12 +198,20 @@ def test_failing_get_dataframe_or_raise(example_float_df, mocker):
     mock_response.content = b"malformed_bytes"
     mock = mocker.patch("requests.get", return_value=mock_response)
     with pytest.raises(falcon.HTTPInternalServerError):
-        web.get_dataframe_or_raise("example.com")
+        utils.get_dataframe_or_raise("example.com")
     mock.assert_called_once()
 
 
 def _mock_get_dataframe(_mocker, df: pd.DataFrame, status_code: int = 200) -> MagicMock:
     mock_response = _mocker.MagicMock()
     mock_response.status_code = status_code
-    mock_response.content = web.dataframe_to_bytes(df)
+    mock_response.content = utils.dataframe_to_bytes(df)
     return _mocker.patch("requests.get", return_value=mock_response)
+
+
+def test_encode_multiple_parts(example_float_df):
+    # This does not test a certain condition, it just checks whether it causes
+    # an exception.
+    utils.encode_multiple_parts(
+        dict(anon_data=utils.dataframe_to_bytes(example_float_df), anon_scheme="same")
+    )
