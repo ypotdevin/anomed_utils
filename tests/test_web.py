@@ -33,6 +33,11 @@ def object_array():
     return np.array(3 * ["foo", "bar", "baz"])
 
 
+@pytest.fixture()
+def example_float_df():
+    return pd.DataFrame(data=np.arange(10, dtype=float))
+
+
 class Dummy:
     def fit(self, X: np.ndarray, y: np.ndarray) -> None:
         pass
@@ -172,3 +177,31 @@ def test_failing_bytes_to_dataframe():
     byte_string = b"test test"
     with pytest.raises(expected_exception=ValueError):
         web.bytes_to_dataframe(byte_string)
+
+
+def test_get_dataframe_or_raise(example_float_df, mocker):
+    mock = _mock_get_dataframe(mocker, example_float_df)
+    assert example_float_df.equals(web.get_dataframe_or_raise("example.com"))
+    mock.assert_called_once()
+
+
+def test_failing_get_dataframe_or_raise(example_float_df, mocker):
+    mock = _mock_get_connection_error(mocker)
+    with pytest.raises(falcon.HTTPServiceUnavailable):
+        web.get_dataframe_or_raise("example.com")
+    mock.assert_called_once()
+
+    mock_response = mocker.MagicMock()
+    mock_response.status_code = 200
+    mock_response.content = b"malformed_bytes"
+    mock = mocker.patch("requests.get", return_value=mock_response)
+    with pytest.raises(falcon.HTTPInternalServerError):
+        web.get_dataframe_or_raise("example.com")
+    mock.assert_called_once()
+
+
+def _mock_get_dataframe(_mocker, df: pd.DataFrame, status_code: int = 200) -> MagicMock:
+    mock_response = _mocker.MagicMock()
+    mock_response.status_code = status_code
+    mock_response.content = web.dataframe_to_bytes(df)
+    return _mocker.patch("requests.get", return_value=mock_response)
