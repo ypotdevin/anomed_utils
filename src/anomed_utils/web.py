@@ -221,6 +221,7 @@ def bytes_to_named_ndarrays_or_raise(
     except (OSError, ValueError, EOFError):
         if error_message is None:
             error_message = "Array payload parsing (or validation) failed."
+        _logger.exception(error_message)
         raise falcon.HTTPError(status=error_status, description=error_message)
     return arrays
 
@@ -263,13 +264,17 @@ def get_named_arrays_or_raise(
         If parsing (named) NumPy arrays from the requested bytes payload failed.
     """
     try:
+        _logger.debug(
+            msg=f"Requesting NumPy arrays from url {data_url} with params {params} and "
+            f"timeout {timeout}."
+        )
         data_resp = requests.get(url=data_url, params=params, timeout=timeout)
         if data_resp.status_code != 200:
             raise ValueError()
     except (requests.RequestException, ValueError):
-        raise falcon.HTTPServiceUnavailable(
-            description="Unable to obtain data from remote location (timeout or error)."
-        )
+        message = "Unable to obtain data from remote location (timeout or error)."
+        _logger.exception(message)
+        raise falcon.HTTPServiceUnavailable(description=message)
     arrays = bytes_to_named_ndarrays_or_raise(
         data_resp.content,
         expected_array_labels=expected_array_labels,
@@ -372,17 +377,21 @@ def get_dataframe_or_raise(
         If parsing the `DataFrame` from the requested bytes payload failed.
     """
     try:
+        _logger.debug(
+            msg=f"Requesting DataFrame from url {data_url} with params {params} and "
+            f"timeout {timeout}."
+        )
         data_resp = requests.get(url=data_url, params=params, timeout=timeout)
         if data_resp.status_code != 200:
             raise ValueError()
     except (requests.RequestException, ValueError):
-        raise falcon.HTTPServiceUnavailable(
-            description="Unable to obtain data from remote location (timeout or error)."
-        )
+        message = "Unable to obtain data from remote location (timeout or error)."
+        _logger.exception(message)
+        raise falcon.HTTPServiceUnavailable(description=message)
     try:
         df = bytes_to_dataframe(data_resp.content)
         return df
     except ValueError:
         message = "Failed to parse the DataFrame from remote location."
-        _logger.debug(message)
+        _logger.exception(message)
         raise falcon.HTTPInternalServerError(description=message)
